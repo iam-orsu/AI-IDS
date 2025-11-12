@@ -1,19 +1,51 @@
-# 🛡️ AI-Powered Network Scan Detector (H-IDS)
+# AI-Powered Network Scan Detector (H-IDS)
 
-## 📚 Project Overview
+## Project Overview
 
-This is a complete, production-ready **Host-Based Intrusion Detection System (H-IDS)** that uses **Machine Learning** to detect network scan attacks (nmap) in real-time. Built for university cybersecurity projects, it demonstrates practical AI applications in network security.
+Cyber criminals often scan networks to find loopholes using tools like Nmap. We built an AI-powered scan detector that watches packets and flags those scan patterns in real time. It’s simple to run, shows clear alerts on a small dashboard, and was created by our team at the University of New Haven for a course project. This README is written in our voice so other students can set it up fast and reproduce our results.
 
-### 🎯 What This System Does
+### What this system does
 
-- **Monitors** network traffic 24/7 on your Ubuntu server
-- **Detects** various nmap scan techniques (SYN, FIN, XMAS, NULL scans)
-- **Alerts** you in real-time through a beautiful web dashboard
-- **Uses AI** (Random Forest) to distinguish attacks from normal traffic
+- Monitors network traffic 24/7 on an Ubuntu server
+- Detects common nmap scan techniques (SYN, FIN, XMAS, NULL, port sweeps)
+- Raises real-time alerts on a clean web dashboard
+- Uses a Random Forest model to separate scans from normal traffic reliably
 
 ---
 
-## 🏗️ Architecture
+## Executive Summary
+
+This project implements a host-based intrusion detection system focused on spotting network scan behavior in real time. We capture short windows of packet data, extract lightweight features (unique ports, TCP flags, option diversity, and HTTP probe signatures), and classify windows using a Random Forest model. A Flask dashboard displays alerts and supports CSV export.
+
+- Objective: Detect Nmap-style scans (SYN, FIN, XMAS, NULL, OS, version, aggressive) with low false positives
+- Platform: Ubuntu Server (sensor + dashboard), Kali Linux (attacker VM)
+- Approach: Per-second features + calibrated probability threshold + a few heuristics
+- Output: Real-time alerts with attacker IP, scan type, and counts
+
+---
+
+## Quick Start
+
+1. Train the model
+   ```bash
+   cd ~/AI-IDS
+   sudo python3 train_model.py
+   ```
+   - Capture normal windows (30s each) and attack windows (60s each) using the recipes below.
+   - Press q to train and save nmap_detector_model.pkl.
+
+2. Run the detector
+   ```bash
+   sudo python3 app.py
+   ```
+   - Open http://<ubuntu_ip>:5000 in your browser.
+
+3. Test
+   - From Kali, run: `sudo nmap -sS <ubuntu_ip>` and confirm an alert appears.
+
+---
+
+## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -38,7 +70,7 @@ This is a complete, production-ready **Host-Based Intrusion Detection System (H-
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 AI-IDS/
@@ -53,9 +85,9 @@ AI-IDS/
 
 ---
 
-## 🚀 Complete Setup Guide
+## Complete Setup Guide
 
-### **Prerequisites**
+### Prerequisites
 
 #### 1. Virtual Machines Setup
 
@@ -155,9 +187,11 @@ chmod +x train_model.py app.py
 
 ---
 
-## 🎓 Training the AI Model
+## Training the AI Model
 
-### **Step 1: Start the Training Script**
+In this section we show exactly how we captured data and trained the model. Follow the same steps to reproduce our setup and minimize false positives.
+
+### Step 1: Start the Training Script
 
 ```bash
 cd ~/AI-IDS
@@ -174,7 +208,7 @@ You'll see:
 ...
 ```
 
-### **Step 2: Capture NORMAL Traffic**
+### Step 2: Capture NORMAL Traffic
 
 1. Press **`n`** in the training script
 2. The script will capture for **30 seconds**
@@ -220,7 +254,7 @@ for i in {1..3}; do wget -qO- https://httpbin.org/get >/dev/null; sleep 8; done
 
 4. Wait for the capture to complete
 
-### **Step 3: Capture ATTACK Traffic**
+### Step 3: Capture ATTACK Traffic
 
 1. Press **`a`** in the training script
 2. The script will capture for **60 seconds**
@@ -280,13 +314,13 @@ sudo nmap -O -Pn <ubuntu_ip>
 
 4. Let all scans complete during the 60-second window
 
-### **Step 4: Repeat for Better Accuracy**
+### Step 4: Repeat for Better Accuracy
 
 For best results:
 - Capture **2-3 NORMAL** traffic samples (press `n` multiple times)
 - Capture **3-5 ATTACK** traffic samples (press `a` multiple times)
 
-### **Step 5: Train the Model**
+### Step 5: Train the Model
 
 1. Press **`q`** to quit and train
 2. The AI will train and show you:
@@ -307,9 +341,9 @@ For best results:
 
 ---
 
-## 🚀 Running the Live Detector
+## Running the Live Detector
 
-### **Step 1: Start the Application**
+### Step 1: Start the Application
 
 ```bash
 cd ~/AI-IDS
@@ -339,7 +373,7 @@ You'll see:
    🔗 Network: http://<ubuntu_ip>:5000
 ```
 
-### **Step 2: Open the Dashboard**
+### Step 2: Open the Dashboard
 
 **From your host machine (Windows/Mac):**
 
@@ -355,9 +389,11 @@ You'll see the beautiful dashboard with:
 
 ---
 
-## 🧪 Testing the System
+## Testing the System
 
-### **Test 1: Launch a Real Attack**
+Here’s how we validate that the detector works end-to-end after training.
+
+### Test 1: Launch a Real Attack
 
 **On your Kali Linux VM:**
 
@@ -375,7 +411,7 @@ sudo nmap -sS <ubuntu_ip>
   - Ports scanned
   - Total packets
 
-### **Test 2: Multiple Scan Types**
+### Test 2: Multiple Scan Types
 
 ```bash
 # On Kali, run different scans
@@ -386,7 +422,7 @@ sudo nmap -sN <ubuntu_ip>  # NULL scan
 
 Each should generate a separate alert with the correct scan type!
 
-### **Test 3: Normal Traffic (Should NOT Alert)**
+### Test 3: Normal Traffic (Should NOT Alert)
 
 ```bash
 # On your host machine or another VM
@@ -398,15 +434,15 @@ These should **NOT** trigger alerts (if they do, retrain with more normal traffi
 
 ---
 
-## 📊 Understanding the Dashboard
+## Understanding the Dashboard
 
-### **Statistics Cards**
+### Statistics Cards
 
 1. **Total Alerts**: Count of all detected attacks
 2. **Monitoring Since**: How long the system has been running
 3. **AI Model**: Status of the AI (always "Active")
 
-### **Alert Cards**
+### Alert Cards
 
 Each alert shows:
 - **Timestamp**: When the attack was detected
@@ -415,18 +451,18 @@ Each alert shows:
 - **Ports Scanned**: Number of unique ports targeted
 - **Total Packets**: Volume of scan traffic
 
-### **Color Coding**
+### Color Coding
 
-- 🔴 **Red Border**: SYN Scan (most common)
-- 🟠 **Orange Border**: FIN Scan
-- 🟡 **Yellow Border**: XMAS Scan
-- 🟣 **Purple Border**: NULL Scan
+- Red border: SYN Scan (most common)
+- Orange border: FIN Scan
+- Yellow border: XMAS Scan
+- Purple border: NULL Scan
 
 ---
 
-## 🔧 Troubleshooting
+## Troubleshooting
 
-### **Problem: "Model file not found"**
+### Problem: "Model file not found"
 
 **Solution:**
 ```bash
@@ -436,7 +472,7 @@ sudo python3 train_model.py
 # Complete the training process
 ```
 
-### **Problem: "Permission denied" errors**
+### Problem: "Permission denied" errors
 
 **Solution:**
 ```bash
@@ -444,7 +480,7 @@ sudo python3 train_model.py
 sudo python3 app.py
 ```
 
-### **Problem: Can't access dashboard from browser**
+### Problem: Can't access dashboard from browser
 
 **Solution:**
 ```bash
@@ -458,7 +494,7 @@ sudo ufw allow 5000/tcp
 sudo ufw disable
 ```
 
-### **Problem: No alerts appearing**
+### Problem: No alerts appearing
 
 **Checklist:**
 1. ✅ Is `app.py` running with sudo?
@@ -473,7 +509,7 @@ sudo ufw disable
 # You should see console output when scans happen
 ```
 
-### **Problem: Low model accuracy (<80%)**
+### Problem: Low model accuracy (<80%)
 
 **Solution:**
 ```bash
@@ -487,9 +523,9 @@ sudo python3 train_model.py
 
 ---
 
-## 🎯 How It Works (Technical Deep Dive)
+## How It Works (Technical Deep Dive)
 
-### **1. Feature Extraction**
+### 1. Feature Extraction
 
 The AI learns from these features:
 - **unique_ports_contacted**: Scans hit many ports (normal traffic hits 1-2)
@@ -499,7 +535,7 @@ The AI learns from these features:
 - **null_packets**: No-flag packets (NULL scan indicator)
 - **total_packets**: Volume of traffic
 
-### **2. Machine Learning Model**
+### 2. Machine Learning Model
 
 - **Algorithm**: Random Forest Classifier
 - **Trees**: 100 decision trees
@@ -507,7 +543,7 @@ The AI learns from these features:
 - **Input**: 6 features per 5-second window
 - **Output**: Binary classification (0=Normal, 1=Attack)
 
-### **3. Real-Time Detection**
+### 3. Real-Time Detection
 
 ```
 Every 5 seconds:
@@ -522,9 +558,9 @@ Every 5 seconds:
 
 ---
 
-## 📚 Scan Types Explained
+## Scan Types Explained
 
-### **SYN Scan (Stealth Scan)**
+### SYN Scan (Stealth Scan)
 ```bash
 nmap -sS <target>
 ```
@@ -532,21 +568,21 @@ nmap -sS <target>
 - Sends SYN packets without completing TCP handshake
 - Hard to detect without AI
 
-### **FIN Scan**
+### FIN Scan
 ```bash
 nmap -sF <target>
 ```
 - Sends FIN packets to closed ports
 - Bypasses some firewalls
 
-### **XMAS Scan**
+### XMAS Scan
 ```bash
 nmap -sX <target>
 ```
 - Sets FIN, PSH, and URG flags
 - Named because flags "light up like a Christmas tree"
 
-### **NULL Scan**
+### NULL Scan
 ```bash
 nmap -sN <target>
 ```
@@ -555,9 +591,9 @@ nmap -sN <target>
 
 ---
 
-## 🎓 University Project Tips
+## University Project Tips
 
-### **For Your Report**
+### For Your Report
 
 1. **Introduction**: Explain the threat of network scanning
 2. **Methodology**: Describe the ML approach (Random Forest)
@@ -568,7 +604,7 @@ nmap -sN <target>
    - Kali running nmap scans
 5. **Conclusion**: Discuss effectiveness and limitations
 
-### **Demo Preparation**
+### Demo Preparation
 
 1. **Pre-demo**: Train the model beforehand
 2. **During demo**:
@@ -577,7 +613,7 @@ nmap -sN <target>
    - Watch alerts appear in real-time
 3. **Explain**: Walk through the code and AI logic
 
-### **Bonus Points**
+### Bonus Points
 
 - Add email/SMS alerts (using SMTP or Twilio)
 - Log alerts to a database (SQLite)
@@ -586,16 +622,16 @@ nmap -sN <target>
 
 ---
 
-## 🔒 Security Notes
+## Security Notes
 
-### **⚠️ Important Warnings**
+### Important Warnings
 
 1. **Only use in your lab**: Never run nmap scans on networks you don't own
 2. **Ethical hacking**: This is for educational purposes only
 3. **VM isolation**: Keep your VMs isolated from production networks
 4. **Firewall**: Don't expose port 5000 to the internet
 
-### **Best Practices**
+### Best Practices
 
 - Use strong passwords on your VMs
 - Keep Ubuntu updated: `sudo apt update && sudo apt upgrade`
@@ -604,16 +640,16 @@ nmap -sN <target>
 
 ---
 
-## 📞 Support & Resources
+## Support & Resources
 
-### **Learning Resources**
+### Learning Resources
 
 - **Scapy Tutorial**: https://scapy.readthedocs.io/
 - **Nmap Guide**: https://nmap.org/book/man.html
 - **Scikit-learn Docs**: https://scikit-learn.org/
 - **Flask Tutorial**: https://flask.palletsprojects.com/
 
-### **Common Questions**
+### Common Questions
 
 **Q: Can I use this on a real network?**
 A: Yes, but only on networks you own/manage. Get permission first!
@@ -629,15 +665,16 @@ A: This is a proof-of-concept. Production systems need more hardening.
 
 ---
 
-## 🎉 Congratulations!
+## Congratulations
 
 You've built a complete AI-powered intrusion detection system! This demonstrates:
 
-✅ Machine Learning in cybersecurity  
-✅ Real-time packet analysis  
-✅ Full-stack development (Python + Flask + HTML/CSS/JS)  
-✅ Network security fundamentals  
-✅ Practical ethical hacking skills  
+We demonstrated:
+- Machine learning applied to cybersecurity
+- Real-time packet analysis
+- Full-stack implementation (Python, Flask, HTML/CSS/JS)
+- Network security fundamentals
+- Practical ethical hacking skills
 
 **Next Steps:**
 - Experiment with different ML models (SVM, Neural Networks)
@@ -647,17 +684,17 @@ You've built a complete AI-powered intrusion detection system! This demonstrates
 
 ---
 
-## 📄 License
+## License
 
 This project is for educational purposes. Use responsibly and ethically.
 
 ---
 
-## 👨‍💻 Author
+## Authors
 
-**Cybersecurity Research Team**  
-University Project - Host-Based Intrusion Detection System
+**AI-IDS Team — University of New Haven**  
+University of New Haven — Host-Based Intrusion Detection System
 
 ---
 
-**Happy Hacking! 🛡️🔒**
+Thank you.
