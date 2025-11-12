@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Scan Detector - Live Dashboard</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Custom Styles -->
+    <style>
+        @keyframes pulse-ring {
+            0% {
+                transform: scale(0.95);
+                opacity: 1;
+            }
+            50% {
+                transform: scale(1.05);
+                opacity: 0.7;
+            }
+            100% {
+                transform: scale(0.95);
+                opacity: 1;
+            }
+        }
+        
+        .pulse-animation {
+            animation: pulse-ring 2s ease-in-out infinite;
+        }
+        
+        @keyframes slide-in {
+            from {
+                transform: translateX(-100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        .alert-card {
+            animation: slide-in 0.5s ease-out;
+        }
+        
+        /* Glowing effect for critical alerts */
+        .glow-red {
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.5);
+        }
+    </style>
+</head>
+
+<body class="bg-gray-900 text-white font-sans">
+    
+    <!-- Main Container -->
+    <div class="container mx-auto p-8 max-w-7xl">
+        
+        <!-- Header Section -->
+        <div class="mb-8">
+            <div class="flex items-center justify-between flex-wrap gap-4">
+                <!-- Title -->
+                <div>
+                    <h1 class="text-5xl font-bold text-emerald-400 mb-2">
+                        🛡️ AI Scan Detector
+                    </h1>
+                    <p class="text-gray-400 text-lg">
+                        Real-Time Network Intrusion Detection System
+                    </p>
+                </div>
+                
+                <!-- Status Badge -->
+                <div class="flex items-center gap-3">
+                    <span class="bg-green-500 text-white px-4 py-2 rounded-full text-sm font-semibold flex items-center gap-2 pulse-animation">
+                        <span class="w-3 h-3 bg-white rounded-full"></span>
+                        LIVE MONITORING
+                    </span>
+                </div>
+            </div>
+            
+            <!-- Info Bar -->
+            <div class="mt-6 bg-gray-800 rounded-lg p-4 border-l-4 border-blue-500">
+                <div class="flex items-start gap-3">
+                    <svg class="w-6 h-6 text-blue-400 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <div>
+                        <p class="text-gray-300 font-semibold">System Status</p>
+                        <p class="text-gray-400 text-sm mt-1">
+                            AI model is actively analyzing network traffic in 5-second intervals. 
+                            Alerts will appear below when suspicious scan activity is detected.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Statistics Dashboard -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <!-- Total Alerts Card -->
+            <div class="bg-gradient-to-br from-red-900 to-red-800 rounded-lg p-6 shadow-lg">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-red-200 text-sm font-semibold uppercase tracking-wide">Total Alerts</p>
+                        <p class="text-4xl font-bold text-white mt-2" id="total-alerts">0</p>
+                    </div>
+                    <div class="bg-red-700 p-4 rounded-full">
+                        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- System Uptime Card -->
+            <div class="bg-gradient-to-br from-blue-900 to-blue-800 rounded-lg p-6 shadow-lg">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-blue-200 text-sm font-semibold uppercase tracking-wide">Monitoring Since</p>
+                        <p class="text-2xl font-bold text-white mt-2" id="uptime">Just Now</p>
+                    </div>
+                    <div class="bg-blue-700 p-4 rounded-full">
+                        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- AI Status Card -->
+            <div class="bg-gradient-to-br from-emerald-900 to-emerald-800 rounded-lg p-6 shadow-lg">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-emerald-200 text-sm font-semibold uppercase tracking-wide">AI Model</p>
+                        <p class="text-2xl font-bold text-white mt-2">Active</p>
+                    </div>
+                    <div class="bg-emerald-700 p-4 rounded-full">
+                        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Alerts Section -->
+        <div class="mb-8">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-3xl font-semibold text-white flex items-center gap-3">
+                    <span class="text-red-500">🚨</span>
+                    Live Alerts
+                </h2>
+                <button onclick="clearAlerts()" class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors">
+                    Clear All
+                </button>
+            </div>
+            
+            <!-- Alerts Container -->
+            <div id="alerts-container" class="space-y-4">
+                <!-- Alerts will be dynamically inserted here by JavaScript -->
+                
+                <!-- Default "No Alerts" Message -->
+                <div id="no-alerts-message" class="bg-gray-800 rounded-lg p-8 text-center border-2 border-dashed border-gray-700">
+                    <svg class="w-16 h-16 text-gray-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                    </svg>
+                    <p class="text-gray-400 text-lg font-semibold">No Threats Detected</p>
+                    <p class="text-gray-500 text-sm mt-2">Your network is secure. Alerts will appear here when scan activity is detected.</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Footer -->
+        <div class="mt-12 pt-6 border-t border-gray-800 text-center">
+            <p class="text-gray-500 text-sm">
+                AI-Powered Network Scan Detector | University Project | 
+                <span class="text-emerald-400">Powered by Machine Learning</span>
+            </p>
+        </div>
+        
+    </div>
+    
+    <!-- JavaScript for Live Updates -->
+    <script>
+        // Store the start time for uptime calculation
+        const startTime = new Date();
+        
+        /**
+         * Fetches alerts from the Flask API and updates the dashboard
+         */
+        async function fetchAlerts() {
+            try {
+                const response = await fetch('/api/alerts');
+                const alerts = await response.json();
+                
+                // Update total alerts counter
+                document.getElementById('total-alerts').textContent = alerts.length;
+                
+                // Get the alerts container
+                const container = document.getElementById('alerts-container');
+                const noAlertsMessage = document.getElementById('no-alerts-message');
+                
+                // If no alerts, show the "no alerts" message
+                if (alerts.length === 0) {
+                    noAlertsMessage.style.display = 'block';
+                    // Clear any existing alert cards
+                    const alertCards = container.querySelectorAll('.alert-card');
+                    alertCards.forEach(card => card.remove());
+                    return;
+                }
+                
+                // Hide the "no alerts" message
+                noAlertsMessage.style.display = 'none';
+                
+                // Clear existing alerts
+                container.innerHTML = '';
+                
+                // Create HTML for each alert
+                alerts.forEach((alert, index) => {
+                    const alertCard = createAlertCard(alert, index);
+                    container.innerHTML += alertCard;
+                });
+                
+            } catch (error) {
+                console.error('Error fetching alerts:', error);
+            }
+        }
+        
+        /**
+         * Creates HTML for a single alert card
+         */
+        function createAlertCard(alert, index) {
+            // Determine severity color based on scan type
+            const severityColor = getSeverityColor(alert.scan_type);
+            
+            return `
+                <div class="alert-card bg-gray-800 rounded-lg shadow-md border-l-4 ${severityColor} glow-red hover:bg-gray-750 transition-all">
+                    <div class="p-6">
+                        <!-- Alert Header -->
+                        <div class="flex items-start justify-between mb-4">
+                            <div class="flex items-start gap-4">
+                                <!-- Alert Icon -->
+                                <div class="bg-red-500 p-3 rounded-full">
+                                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                                    </svg>
+                                </div>
+                                
+                                <!-- Alert Content -->
+                                <div>
+                                    <h3 class="text-red-400 font-bold text-xl mb-1">
+                                        ⚠️ High-Priority Alert: Network Scan Detected
+                                    </h3>
+                                    <p class="text-gray-400 text-sm">
+                                        <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                        </svg>
+                                        ${alert.timestamp}
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            <!-- Alert Badge -->
+                            <span class="bg-red-500 text-white px-3 py-1 rounded-full text-xs font-bold uppercase">
+                                Alert #${index + 1}
+                            </span>
+                        </div>
+                        
+                        <!-- Alert Details Grid -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 bg-gray-900 rounded-lg p-4">
+                            <!-- Attacker IP -->
+                            <div class="flex items-center gap-3">
+                                <div class="bg-red-900 p-2 rounded">
+                                    <svg class="w-5 h-5 text-red-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <p class="text-gray-400 text-xs uppercase tracking-wide">Attacker IP</p>
+                                    <p class="text-white font-bold text-lg">${alert.attacker_ip}</p>
+                                </div>
+                            </div>
+                            
+                            <!-- Scan Type -->
+                            <div class="flex items-center gap-3">
+                                <div class="bg-orange-900 p-2 rounded">
+                                    <svg class="w-5 h-5 text-orange-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"></path>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <p class="text-gray-400 text-xs uppercase tracking-wide">Scan Type</p>
+                                    <p class="text-white font-bold text-lg">${alert.scan_type}</p>
+                                </div>
+                            </div>
+                            
+                            <!-- Unique Ports -->
+                            <div class="flex items-center gap-3">
+                                <div class="bg-purple-900 p-2 rounded">
+                                    <svg class="w-5 h-5 text-purple-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <p class="text-gray-400 text-xs uppercase tracking-wide">Ports Scanned</p>
+                                    <p class="text-white font-bold text-lg">${alert.unique_ports}</p>
+                                </div>
+                            </div>
+                            
+                            <!-- Total Packets -->
+                            <div class="flex items-center gap-3">
+                                <div class="bg-blue-900 p-2 rounded">
+                                    <svg class="w-5 h-5 text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <p class="text-gray-400 text-xs uppercase tracking-wide">Total Packets</p>
+                                    <p class="text-white font-bold text-lg">${alert.total_packets}</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Recommended Action -->
+                        <div class="mt-4 bg-yellow-900 bg-opacity-30 border border-yellow-700 rounded-lg p-3">
+                            <p class="text-yellow-300 text-sm font-semibold flex items-center gap-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                Recommended Action: Investigate source IP and consider firewall rules
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        /**
+         * Determines the border color based on scan type severity
+         */
+        function getSeverityColor(scanType) {
+            if (scanType.includes('SYN')) return 'border-red-500';
+            if (scanType.includes('FIN')) return 'border-orange-500';
+            if (scanType.includes('XMAS')) return 'border-yellow-500';
+            if (scanType.includes('NULL')) return 'border-purple-500';
+            return 'border-red-500';
+        }
+        
+        /**
+         * Updates the system uptime display
+         */
+        function updateUptime() {
+            const now = new Date();
+            const diffMs = now - startTime;
+            const diffMins = Math.floor(diffMs / 60000);
+            const diffHours = Math.floor(diffMins / 60);
+            
+            let uptimeText;
+            if (diffHours > 0) {
+                uptimeText = `${diffHours}h ${diffMins % 60}m`;
+            } else if (diffMins > 0) {
+                uptimeText = `${diffMins} min${diffMins > 1 ? 's' : ''}`;
+            } else {
+                uptimeText = 'Just Now';
+            }
+            
+            document.getElementById('uptime').textContent = uptimeText;
+        }
+        
+        /**
+         * Clears all alerts (client-side only)
+         */
+        function clearAlerts() {
+            const container = document.getElementById('alerts-container');
+            const noAlertsMessage = document.getElementById('no-alerts-message');
+            
+            container.innerHTML = '';
+            noAlertsMessage.style.display = 'block';
+            document.getElementById('total-alerts').textContent = '0';
+        }
+        
+        // Initialize: Fetch alerts immediately on page load
+        fetchAlerts();
+        
+        // Set up automatic refresh every 3 seconds
+        setInterval(fetchAlerts, 3000);
+        
+        // Update uptime every 30 seconds
+        setInterval(updateUptime, 30000);
+        updateUptime();
+        
+        // Log to console
+        console.log('🛡️ AI Scan Detector Dashboard Loaded');
+        console.log('📡 Fetching alerts every 3 seconds...');
+    </script>
+    
+</body>
+</html>
