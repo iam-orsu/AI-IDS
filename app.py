@@ -261,18 +261,55 @@ def live_detector():
             
             # Debug: Show prediction
             print(f"[DEBUG] AI Prediction: {prediction} (0=Normal, 1=Attack)")
-            
-            # If the AI says "YES, this is an attack!" (prediction == 1)
-            if prediction == 1:
+
+            # Heuristic rules for OS/Version/Aggressive probes that may be light-weight per 5s window
+            opt_sig_count = len(features['tcp_option_signatures'])
+            http_probe = features['http_nmap_probe']
+            os_probe_heuristic = opt_sig_count >= 10  # lower threshold for sensitivity
+            version_probe_heuristic = http_probe
+
+            # Rule-based triggers to guarantee alerts for common scans
+            syn_rate = features['syn_packets'] / window_seconds
+            fin_present = features['fin_packets'] > 0
+            xmas_present = features['xmas_packets'] > 0
+            null_present = features['null_packets'] > 0
+            unique_ports = len(features['unique_ports'])
+            total_pkts = features['total_packets']
+
+            port_sweep = unique_ports >= 50 or total_pkts >= 200 or syn_rate >= 10
+
+            rule_scan_type = None
+            if xmas_present:
+                rule_scan_type = 'XMAS Scan'
+            elif null_present:
+                rule_scan_type = 'NULL Scan'
+            elif fin_present:
+                rule_scan_type = 'FIN Scan'
+            elif port_sweep:
+                rule_scan_type = 'SYN Scan (Stealth)' if syn_rate >= 10 else 'Port Sweep'
+
+            should_alert = bool(
+                prediction == 1 or os_probe_heuristic or version_probe_heuristic or rule_scan_type is not None
+            )
+
+            if should_alert:
                 # Determine what type of scan it is
-                scan_type = determine_scan_type(features)
+                scan_type = rule_scan_type or determine_scan_type(features)
 
                 # Enrich with capabilities
                 capabilities = []
-                if features['http_nmap_probe']:
+                if http_probe:
                     capabilities.append('Version/Script Probe (-sV/-A HTTP)')
-                if len(features['tcp_option_signatures']) > 5:
+                if os_probe_heuristic:
                     capabilities.append('OS Fingerprinting Heuristics (-O)')
+                if prediction == 1:
+                    capabilities.append('ML classification: Attack')
+                else:
+                    capabilities.append('Heuristic classification: Probe detected')
+                if rule_scan_type:
+                    capabilities.append(f'Rule trigger: {rule_scan_type}')
+                if port_sweep and not rule_scan_type:
+                    capabilities.append('Rule trigger: Port Sweep')
                 
                 # Get the attacker's IP (or "Multiple" if many sources)
                 if len(features['source_ips']) == 1:
