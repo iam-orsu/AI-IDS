@@ -574,13 +574,6 @@ nmap -sN <target>
    - Watch alerts appear in real-time
 3. **Explain**: Walk through the code and AI logic
 
-### Bonus Points
-
-- Add email/SMS alerts (using SMTP or Twilio)
-- Log alerts to a database (SQLite)
-- Add more scan types (UDP scans, OS detection)
-- Create a mobile app version
-
 ---
 
 ## Security Notes
@@ -596,7 +589,6 @@ nmap -sN <target>
 
 - Use strong passwords on your VMs
 - Keep Ubuntu updated: `sudo apt update && sudo apt upgrade`
-- Don't run as root (use sudo only when needed)
 - Back up your trained model file
 
 ---
@@ -610,25 +602,7 @@ nmap -sN <target>
 - **Scikit-learn Docs**: https://scikit-learn.org/
 - **Flask Tutorial**: https://flask.palletsprojects.com/
 
-### Common Questions
-
-**Q: Can I use this on a real network?**
-A: Yes, but only on networks you own/manage. Get permission first!
-
-**Q: Will it detect other attacks?**
-A: Currently only nmap scans. You can extend it for other attacks.
-
-**Q: How accurate is it?**
-A: With proper training, 90-98% accuracy on test data.
-
-**Q: Can I deploy this to production?**
-A: This is a proof-of-concept. Production systems need more hardening.
-
----
-
-## Congratulations
-
-You've built a complete AI-powered intrusion detection system! This demonstrates:
+## Final Outcomes of the project
 
 We demonstrated:
 - Machine learning applied to cybersecurity
@@ -652,6 +626,7 @@ This project is for educational purposes. Use responsibly and ethically.
 ---
 
 ## Authors
+Nandhu Lakshmi
 
 **AI-IDS Team — University of New Haven**  
 University of New Haven — Host-Based Intrusion Detection System
