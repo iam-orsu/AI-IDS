@@ -249,8 +249,14 @@ def train_and_save_model():
     print(f"\n✅ MODEL TRAINING COMPLETE!")
     print(f"\n📊 Model Performance:")
     print(f"   🎯 Accuracy: {accuracy * 100:.2f}%")
-    print("\n📋 Detailed Classification Report:")
-    print(classification_report(y_test, y_pred, target_names=['Normal', 'Attack']))
+    
+    # Only show detailed report if we have both classes in test set
+    if len(set(y_test)) > 1:
+        print("\n📋 Detailed Classification Report:")
+        print(classification_report(y_test, y_pred, target_names=['Normal', 'Attack']))
+    else:
+        print("\n⚠️  Note: Test set only contains one class (dataset is small)")
+        print("   The model is still valid, but capture more samples for better evaluation.")
     
     # Show feature importance (what the AI thinks is most important)
     print("\n🔍 Feature Importance (What the AI learned):")
