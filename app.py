@@ -193,14 +193,15 @@ def live_detector():
             if features['total_packets'] == 0:
                 continue
             
-            # Prepare features for the AI model (same format as training)
+            # Prepare per-second rate features (must match training)
+            window_seconds = 5
             feature_vector = {
-                'unique_ports_contacted': len(features['unique_ports']),
-                'syn_packets': features['syn_packets'],
-                'fin_packets': features['fin_packets'],
-                'xmas_packets': features['xmas_packets'],
-                'null_packets': features['null_packets'],
-                'total_packets': features['total_packets']
+                'unique_ports_contacted_rate': len(features['unique_ports']) / window_seconds,
+                'syn_packets_rate': features['syn_packets'] / window_seconds,
+                'fin_packets_rate': features['fin_packets'] / window_seconds,
+                'xmas_packets_rate': features['xmas_packets'] / window_seconds,
+                'null_packets_rate': features['null_packets'] / window_seconds,
+                'total_packets_rate': features['total_packets'] / window_seconds,
             }
             
             # Convert to DataFrame (required by scikit-learn)

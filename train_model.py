@@ -162,14 +162,15 @@ def capture_traffic(duration, label):
     with data_lock:
         unique_port_count = len(features['unique_ports'])
         
-        # Create a feature vector for this capture session
+        # Compute per-second rates to normalize across different window durations
+        dur = max(1, int(duration))
         sample = {
-            'unique_ports_contacted': unique_port_count,
-            'syn_packets': features['syn_packets'],
-            'fin_packets': features['fin_packets'],
-            'xmas_packets': features['xmas_packets'],
-            'null_packets': features['null_packets'],
-            'total_packets': features['total_packets'],
+            'unique_ports_contacted_rate': unique_port_count / dur,
+            'syn_packets_rate': features['syn_packets'] / dur,
+            'fin_packets_rate': features['fin_packets'] / dur,
+            'xmas_packets_rate': features['xmas_packets'] / dur,
+            'null_packets_rate': features['null_packets'] / dur,
+            'total_packets_rate': features['total_packets'] / dur,
             'label': label  # 0 = Normal, 1 = Attack
         }
         
