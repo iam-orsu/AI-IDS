@@ -16,8 +16,8 @@ Purpose: University Project - Host-Based Intrusion Detection System
 import threading
 import time
 from datetime import datetime
-from flask import Flask, render_template, jsonify
-from scapy.all import sniff, IP, TCP
+from flask import Flask, render_template, jsonify, request, Response
+from scapy.all import sniff, IP, TCP, Raw
 import joblib
 import pandas as pd
 
@@ -67,6 +67,38 @@ def get_alerts():
         # Return a copy of the alerts list (thread-safe)
         return jsonify(alerts[:])  # [:] creates a shallow copy
 
+
+@app.route('/api/alerts/clear', methods=['POST'])
+def clear_alerts():
+    """Clears all alerts server-side so UI and server state match."""
+    with alerts_lock:
+        alerts.clear()
+    return jsonify({"status": "cleared"})
+
+
+@app.route('/api/alerts/export', methods=['GET'])
+def export_alerts_csv():
+    """Exports alerts as CSV for download."""
+    import csv
+    import io
+    with alerts_lock:
+        rows = alerts[:]
+    if not rows:
+        return Response("timestamp,attacker_ip,scan_type,unique_ports,total_packets,details\n",
+                        mimetype='text/csv')
+    # Build CSV in memory
+    output = io.StringIO()
+    fieldnames = sorted({k for r in rows for k in r.keys()})
+    writer = csv.DictWriter(output, fieldnames=fieldnames)
+    writer.writeheader()
+    for r in rows:
+        writer.writerow(r)
+    csv_data = output.getvalue()
+    output.close()
+    return Response(csv_data, mimetype='text/csv', headers={
+        'Content-Disposition': 'attachment; filename=alerts_export.csv'
+    })
+
 # ============================================================================
 # LIVE PACKET ANALYSIS
 # ============================================================================
@@ -92,7 +124,9 @@ def analyze_traffic_window():
         'xmas_packets': 0,
         'null_packets': 0,
         'total_packets': 0,
-        'source_ips': set()  # Track attacker IPs
+        'source_ips': set(),  # Track attacker IPs
+        'http_nmap_probe': False,  # Detect Nmap HTTP-based probes (e.g., -A/-sV)
+        'tcp_option_signatures': set(),  # Heuristic for OS fingerprinting (-O)
     }
     
     def packet_callback(packet):
@@ -124,6 +158,19 @@ def analyze_traffic_window():
                 features['xmas_packets'] += 1
             elif flags == 0x00:  # NULL Scan
                 features['null_packets'] += 1
+
+            # Track TCP option signature (heuristic for -O OS detection)
+            try:
+                opts = tuple(packet[TCP].options)
+                features['tcp_option_signatures'].add(opts)
+            except Exception:
+                pass
+
+            # Inspect payload for Nmap signatures (heuristic for -A/-sV HTTP probes)
+            if packet.haslayer(Raw):
+                payload = bytes(packet[Raw].load).lower()
+                if b"nmap" in payload or b"nmaplowercheck" in payload or b"nmap scripting engine" in payload:
+                    features['http_nmap_probe'] = True
     
     # Sniff packets for 5 seconds
     # timeout=5 means sniff() will automatically stop after 5 seconds
@@ -187,7 +234,9 @@ def live_detector():
                       f"SYN:{features['syn_packets']}, "
                       f"FIN:{features['fin_packets']}, "
                       f"XMAS:{features['xmas_packets']}, "
-                      f"NULL:{features['null_packets']}")
+                      f"NULL:{features['null_packets']}, "
+                      f"HTTP_NMAP:{features['http_nmap_probe']}, "
+                      f"TCP_OPT_SIGS:{len(features['tcp_option_signatures'])}")
             
             # Skip if no packets were captured
             if features['total_packets'] == 0:
@@ -217,6 +266,13 @@ def live_detector():
             if prediction == 1:
                 # Determine what type of scan it is
                 scan_type = determine_scan_type(features)
+
+                # Enrich with capabilities
+                capabilities = []
+                if features['http_nmap_probe']:
+                    capabilities.append('Version/Script Probe (-sV/-A HTTP)')
+                if len(features['tcp_option_signatures']) > 5:
+                    capabilities.append('OS Fingerprinting Heuristics (-O)')
                 
                 # Get the attacker's IP (or "Multiple" if many sources)
                 if len(features['source_ips']) == 1:
@@ -230,7 +286,8 @@ def live_detector():
                     'attacker_ip': attacker_ip,
                     'scan_type': scan_type,
                     'unique_ports': len(features['unique_ports']),
-                    'total_packets': features['total_packets']
+                    'total_packets': features['total_packets'],
+                    'details': "; ".join(capabilities) if capabilities else ''
                 }
                 
                 # Safely add the alert to the global list (thread-safe)
