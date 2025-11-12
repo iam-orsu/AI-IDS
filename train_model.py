@@ -92,8 +92,9 @@ def packet_callback(packet):
 
             # TCP option diversity (for OS fingerprinting heuristics)
             try:
-                opts = tuple(packet[TCP].options)
-                features['tcp_option_signatures'].add(opts)
+                raw_opts = packet[TCP].options
+                sig = tuple([o[0] if isinstance(o, tuple) else o for o in raw_opts])
+                features['tcp_option_signatures'].add(sig)
             except Exception:
                 pass
 

@@ -165,8 +165,9 @@ def analyze_traffic_window():
 
             # Track TCP option signature (heuristic for -O OS detection)
             try:
-                opts = tuple(packet[TCP].options)
-                features['tcp_option_signatures'].add(opts)
+                raw_opts = packet[TCP].options
+                sig = tuple([o[0] if isinstance(o, tuple) else o for o in raw_opts])
+                features['tcp_option_signatures'].add(sig)
             except Exception:
                 pass
 
@@ -295,10 +296,10 @@ def live_detector():
             http_probe = features['http_nmap_probe']
             # OS fingerprinting should show unusually high TCP option diversity plus activity
             os_probe_heuristic = (
-                opt_sig_count >= 40 and (
-                    len(features['unique_ports']) >= 15 or
-                    features['syn_packets'] >= 20 or
-                    features['total_packets'] >= 300
+                opt_sig_count >= 12 and (
+                    len(features['unique_ports']) >= 10 or
+                    features['syn_packets'] >= 30 or
+                    features['total_packets'] >= 800
                 )
             )
             # Version/Aggressive probe should include known payloads and non-trivial traffic
