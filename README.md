@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Cyber criminals often scan networks to find loopholes using tools like Nmap. We built an AI-powered scan detector that watches packets and flags those scan patterns in real time. It’s simple to run, shows clear alerts on a small dashboard, and was created by our team at the University of New Haven for a course project. This README is written in our voice so other students can set it up fast and reproduce our results.
+Cyber criminals often scan networks to find loopholes using tools like Nmap. We built an AI-powered scan detector that watches packets and flags those scan patterns in real time. It’s simple to run, shows clear alerts on a small dashboard, and was created by our team at the University of New Haven for course project.
 
 ### What this system does
 
@@ -214,23 +214,6 @@ You'll see:
 2. The script will capture for **30 seconds**
 3. **During these 30 seconds**, generate normal traffic:
 
-```bash
-# Open a NEW terminal on Ubuntu or from your host machine
-# Do normal activities:
-
-# Browse a website
-curl https://www.google.com
-
-# Ping another server
-ping 8.8.8.8 -c 10
-
-# SSH to localhost
-ssh localhost
-
-# Check for updates
-sudo apt update
-```
-
 #### Normal traffic recipes (one window = one command)
 
 - Run each of the following in a separate 30-second NORMAL window. If a command finishes early, let the window idle or keep the same command pattern with the built-in sleeps.
@@ -261,28 +244,6 @@ for i in {1..3}; do wget -qO- https://httpbin.org/get >/dev/null; sleep 8; done
 3. **IMMEDIATELY switch to your Kali Linux VM**
 
 **On Kali Linux, run these nmap scans:**
-
-```bash
-# Replace <ubuntu_ip> with your Ubuntu server's IP address
-
-# SYN Scan (Stealth Scan)
-sudo nmap -sS <ubuntu_ip>
-
-# FIN Scan
-sudo nmap -sF <ubuntu_ip>
-
-# XMAS Scan
-sudo nmap -sX <ubuntu_ip>
-
-# NULL Scan
-sudo nmap -sN <ubuntu_ip>
-
-# Full port scan
-sudo nmap -p- <ubuntu_ip>
-
-# Aggressive scan
-sudo nmap -A <ubuntu_ip>
-```
 
 #### Attack traffic recipes (one window = one scan family)
 
@@ -317,8 +278,8 @@ sudo nmap -O -Pn <ubuntu_ip>
 ### Step 4: Repeat for Better Accuracy
 
 For best results:
-- Capture **2-3 NORMAL** traffic samples (press `n` multiple times)
-- Capture **3-5 ATTACK** traffic samples (press `a` multiple times)
+- Capture **5 NORMAL** traffic samples (press `n` multiple times)
+- Capture **4 ATTACK** traffic samples (press `a` multiple times)
 
 ### Step 5: Train the Model
 
