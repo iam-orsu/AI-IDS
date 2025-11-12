@@ -114,6 +114,8 @@ sudo apt install python3 python3-pip -y
 
 # Install required Python libraries
 sudo pip3 install scapy flask pandas scikit-learn joblib --break-system-packages
+sudo pip3 install --upgrade --ignore-installed blinker flask pandas scikit-learn scipy --break-system-packages
+
 
 # Install tcpdump (required by Scapy)
 sudo apt install tcpdump -y
