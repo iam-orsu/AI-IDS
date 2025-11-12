@@ -28,6 +28,8 @@ import pandas as pd
 
 # The trained AI model (loaded from disk)
 model = None
+model_threshold = 0.80
+model_feature_names = None
 
 # List of detected attacks (newest first)
 alerts = []
@@ -261,10 +263,18 @@ def live_detector():
                 'xmas_packets_rate': features['xmas_packets'] / window_seconds,
                 'null_packets_rate': features['null_packets'] / window_seconds,
                 'total_packets_rate': features['total_packets'] / window_seconds,
+                'tcp_option_sig_count_rate': len(features['tcp_option_signatures']) / window_seconds,
+                'http_nmap_probe_flag': 1 if features['http_nmap_probe'] else 0,
             }
             
             # Convert to DataFrame (required by scikit-learn)
             df = pd.DataFrame([feature_vector])
+            # Align columns to model's expectation if available
+            if model_feature_names:
+                missing = [c for c in model_feature_names if c not in df.columns]
+                for c in missing:
+                    df[c] = 0
+                df = df[model_feature_names]
             
             # Ask the AI: "Is this an attack?" with confidence threshold
             proba = None
@@ -301,8 +311,18 @@ def live_detector():
             null_present = features['null_packets'] > 0
             unique_ports = len(features['unique_ports'])
             total_pkts = features['total_packets']
+            suspicious_flags = (
+                features['syn_packets'] + features['fin_packets'] +
+                features['xmas_packets'] + features['null_packets']
+            )
+            suspicious_ratio = suspicious_flags / max(1, total_pkts)
 
-            port_sweep = unique_ports >= 50 or total_pkts >= 200 or syn_rate >= 12
+            # Port sweep should show broad port coverage and/or high SYN rate
+            port_sweep = (
+                unique_ports >= 80 or
+                (syn_rate >= 12 and unique_ports >= 15) or
+                (total_pkts >= 600 and unique_ports >= 30)
+            )
 
             rule_scan_type = None
             if xmas_present:
@@ -314,8 +334,13 @@ def live_detector():
             elif port_sweep:
                 rule_scan_type = 'SYN Scan (Stealth)' if syn_rate >= 10 else 'Port Sweep'
 
-            ml_alert = (proba is not None and proba >= 0.75) or (proba is None and prediction == 1)
-            should_alert = bool(ml_alert or os_probe_heuristic or version_probe_heuristic or rule_scan_type is not None)
+            threshold = model_threshold if model_feature_names else 0.80
+            ml_alert = (proba is not None and proba >= threshold) or (proba is None and prediction == 1)
+            # Only allow rule-based alert when enough evidence exists (flag ratio or explicit FIN/XMAS/NULL)
+            rule_evidence = (
+                xmas_present or null_present or fin_present or (port_sweep and suspicious_ratio >= 0.05)
+            )
+            should_alert = bool(ml_alert or os_probe_heuristic or version_probe_heuristic or (rule_scan_type is not None and rule_evidence))
 
             if should_alert:
                 # Determine what type of scan it is
@@ -398,10 +423,18 @@ def main():
     print("="*70)
     
     # Step 1: Load the trained AI model
-    print("\n[1/3] 🧠 Loading AI model...")
+    print("[1/3] 🧠 Loading AI model...")
     try:
-        model = joblib.load('nmap_detector_model.pkl')
+        loaded = joblib.load('nmap_detector_model.pkl')
+        if isinstance(loaded, dict) and 'model' in loaded:
+            model = loaded['model']
+            model_threshold = float(loaded.get('threshold', model_threshold))
+            model_feature_names = loaded.get('features')
+        else:
+            model = loaded
         print("      ✅ Model loaded successfully!")
+        if model_feature_names:
+            print(f"      ▶ Using calibrated threshold: {model_threshold:.2f}")
     except FileNotFoundError:
         print("\n❌ ERROR: Model file 'nmap_detector_model.pkl' not found!")
         print("   You must train the model first by running:")
