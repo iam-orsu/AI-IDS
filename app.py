@@ -180,6 +180,15 @@ def live_detector():
             # Capture and analyze a 5-second window of traffic
             features = analyze_traffic_window()
             
+            # Debug: Print captured features
+            if features['total_packets'] > 0:
+                print(f"[DEBUG] Captured: {features['total_packets']} packets, "
+                      f"{len(features['unique_ports'])} ports, "
+                      f"SYN:{features['syn_packets']}, "
+                      f"FIN:{features['fin_packets']}, "
+                      f"XMAS:{features['xmas_packets']}, "
+                      f"NULL:{features['null_packets']}")
+            
             # Skip if no packets were captured
             if features['total_packets'] == 0:
                 continue
@@ -199,6 +208,9 @@ def live_detector():
             
             # Ask the AI: "Is this an attack?"
             prediction = model.predict(df)[0]
+            
+            # Debug: Show prediction
+            print(f"[DEBUG] AI Prediction: {prediction} (0=Normal, 1=Attack)")
             
             # If the AI says "YES, this is an attack!" (prediction == 1)
             if prediction == 1:
