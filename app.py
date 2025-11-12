@@ -416,7 +416,7 @@ def main():
     """
     Main entry point - starts both the detector and web server.
     """
-    global model
+    global model, model_threshold, model_feature_names
     
     print("\n" + "="*70)
     print("🛡️  AI-POWERED NETWORK SCAN DETECTOR - LIVE DETECTION")
