@@ -197,6 +197,27 @@ ssh localhost
 sudo apt update
 ```
 
+#### Normal traffic recipes (one window = one command)
+
+- Run each of the following in a separate 30-second NORMAL window. If a command finishes early, let the window idle or keep the same command pattern with the built-in sleeps.
+
+```bash
+# Window 1
+sudo apt update; sleep 5
+
+# Window 2
+for i in {1..5}; do curl -I https://google.com >/dev/null; sleep 5; done
+
+# Window 3
+for i in {1..10}; do curl -s http://127.0.0.1:5000/ >/dev/null; sleep 2; done
+
+# Window 4
+ping -c 10 netflix.com; sleep 20
+
+# Window 5
+for i in {1..3}; do wget -qO- https://httpbin.org/get >/dev/null; sleep 8; done
+```
+
 4. Wait for the capture to complete
 
 ### **Step 3: Capture ATTACK Traffic**
@@ -227,6 +248,34 @@ sudo nmap -p- <ubuntu_ip>
 
 # Aggressive scan
 sudo nmap -A <ubuntu_ip>
+```
+
+#### Attack traffic recipes (one window = one scan family)
+
+- Use separate 60-second ATTACK windows. Start the first command a second after pressing `a` so it lands inside the window. Keep small sleeps between commands in the same family.
+
+```bash
+# Window A: SYN sweep
+sudo nmap -sS -p- <ubuntu_ip>
+sleep 10
+sudo nmap -sS <ubuntu_ip>
+
+# Window B: FIN/NULL/XMAS
+sudo nmap -sF <ubuntu_ip>
+sleep 10
+sudo nmap -sN <ubuntu_ip>
+sleep 10
+sudo nmap -sX <ubuntu_ip>
+
+# Window C: Version/Aggressive
+sudo nmap -sV <ubuntu_ip>
+sleep 10
+sudo nmap -A <ubuntu_ip>
+
+# Window D: OS detection (treat host as up)
+sudo nmap -O -Pn <ubuntu_ip>
+sleep 15
+sudo nmap -O -Pn <ubuntu_ip>
 ```
 
 4. Let all scans complete during the 60-second window
