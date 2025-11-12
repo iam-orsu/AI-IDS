@@ -2,11 +2,7 @@
 
 ## Project Overview
 
-Cyber criminals often scan networks to find loopholes using tools like Nmap. We built an AI-powered scan detector that watches packets and flags those scan patterns in real time. It’s simple to run, shows clear alerts on a small dashboard, and was created by our team at the University of New Haven for course project.
-
-### What this system does
-
-- Monitors network traffic 24/7 on an Ubuntu server
+Cyber criminals often scan networks to find loopholes using tools like Nmap. We built an AI-powered scan detector that watches packets and flags those scan patterns in real time. It’s simple to run, shows clear alerts on a small dashboard, and was created by our team at the University of New Haven for a course project. This documentation is written for students and researchers and focuses on setup, methodology, and reproducibility.
 - Detects common nmap scan techniques (SYN, FIN, XMAS, NULL, port sweeps)
 - Raises real-time alerts on a clean web dashboard
 - Uses a Random Forest model to separate scans from normal traffic reliably
@@ -21,6 +17,16 @@ This project implements a host-based intrusion detection system focused on spott
 - Platform: Ubuntu Server (sensor + dashboard), Kali Linux (attacker VM)
 - Approach: Per-second features + calibrated probability threshold + a few heuristics
 - Output: Real-time alerts with attacker IP, scan type, and counts
+
+---
+
+## Audience and Scope
+
+This documentation targets:
+- Students who want to reproduce our results in a lab environment
+- Researchers who need a concise description of the dataset, features, and model
+
+Scope: host-based detection of Nmap-style scans on Ubuntu; not a full enterprise IDS and not tuned for UDP or application-layer attacks.
 
 ---
 
@@ -190,6 +196,10 @@ chmod +x train_model.py app.py
 ## Training the AI Model
 
 In this section we show exactly how we captured data and trained the model. Follow the same steps to reproduce our setup and minimize false positives.
+Key training rules:
+- Normal windows: 30 seconds; run one benign scenario per window (paced)
+- Attack windows: 60 seconds; one scan family per window (SYN, FIN/NULL/XMAS, -sV/-A, -O -Pn)
+- Features are normalized as per-second rates to align training and live detection
 
 ### Step 1: Start the Training Script
 
@@ -504,6 +514,13 @@ The AI learns from these features:
 - **Input**: 6 features per 5-second window
 - **Output**: Binary classification (0=Normal, 1=Attack)
 
+### Methodology Summary
+- Windowing: 5-second windows for live detection; training windows are normalized to per-second rates for consistency
+- Features: unique destination ports, TCP flag counts (SYN/FIN/XMAS/NULL), total packets, TCP option signature diversity (option names only), HTTP probe flag
+- Model: RandomForestClassifier with class balancing; probability threshold calibrated on hold-out split to prioritize precision
+- Heuristics: lightweight rules for port sweeps and version/OS probes to complement ML
+- Deduplication: alerts are de-duplicated within a short time window per (attacker, scan type)
+
 ### 3. Real-Time Detection
 
 ```
@@ -516,6 +533,22 @@ Every 5 seconds:
    - Add to dashboard
    - Log to console
 ```
+
+---
+
+## Reproducibility
+
+- Environment
+  - Ubuntu Server (tested on 20.04+)
+  - Python 3, packages: scapy, flask, pandas, scikit-learn, joblib
+  - Two-VM lab: Ubuntu (sensor), Kali (attacker)
+- Determinism
+  - `train_model.py` uses a fixed `random_state=42` for model training
+  - Features computed per second to align across different capture durations
+- Data collection
+  - Follow the normal/attack window recipes; avoid mixing multiple scenarios in the same window
+- Evaluation
+  - Hold-out evaluation printed after training; small datasets may yield a single-class test split
 
 ---
 
@@ -552,9 +585,7 @@ nmap -sN <target>
 
 ---
 
-## University Project Tips
-
-### For Your Report
+## The Report Methodology
 
 1. **Introduction**: Explain the threat of network scanning
 2. **Methodology**: Describe the ML approach (Random Forest)
@@ -564,15 +595,6 @@ nmap -sN <target>
    - Dashboard with live alerts
    - Kali running nmap scans
 5. **Conclusion**: Discuss effectiveness and limitations
-
-### Demo Preparation
-
-1. **Pre-demo**: Train the model beforehand
-2. **During demo**:
-   - Show the dashboard (projected)
-   - Run nmap from Kali
-   - Watch alerts appear in real-time
-3. **Explain**: Walk through the code and AI logic
 
 ---
 
@@ -606,16 +628,10 @@ nmap -sN <target>
 
 We demonstrated:
 - Machine learning applied to cybersecurity
-- Real-time packet analysis
+- Real-time AI packet analysis
 - Full-stack implementation (Python, Flask, HTML/CSS/JS)
-- Network security fundamentals
+- Network security 
 - Practical ethical hacking skills
-
-**Next Steps:**
-- Experiment with different ML models (SVM, Neural Networks)
-- Add more features (packet size, timing patterns)
-- Create a distributed version (multiple sensors)
-- Publish your findings!
 
 ---
 
@@ -625,12 +641,18 @@ This project is for educational purposes. Use responsibly and ethically.
 
 ---
 
-## Authors
-Nandhu Lakshmi
+## Citations & References
+- Nmap Project: https://nmap.org/
+- Scapy: https://scapy.readthedocs.io/
+- scikit-learn: https://scikit-learn.org/
 
-**AI-IDS Team — University of New Haven**  
+---
+
+## Authors
+**Nandhu Lakshmi**
 University of New Haven — Host-Based Intrusion Detection System
 
 ---
 
 Thank you.
+
