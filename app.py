@@ -18,6 +18,7 @@ import time
 from datetime import datetime
 from flask import Flask, render_template, jsonify, request, Response
 from scapy.all import sniff, IP, TCP, Raw
+from collections import Counter
 import joblib
 import pandas as pd
 
@@ -30,6 +31,8 @@ model = None
 
 # List of detected attacks (newest first)
 alerts = []
+# Track recent alerts for deduplication: key -> last_timestamp
+recent_alerts = {}
 
 # Thread lock to safely access 'alerts' from multiple threads
 alerts_lock = threading.Lock()
@@ -84,15 +87,13 @@ def export_alerts_csv():
     with alerts_lock:
         rows = alerts[:]
     if not rows:
-        return Response("timestamp,attacker_ip,scan_type,unique_ports,total_packets,details\n",
-                        mimetype='text/csv')
+        return Response("attacker_ip,total_packets,scan_type\n", mimetype='text/csv')
     # Build CSV in memory
     output = io.StringIO()
-    fieldnames = sorted({k for r in rows for k in r.keys()})
-    writer = csv.DictWriter(output, fieldnames=fieldnames)
-    writer.writeheader()
+    writer = csv.writer(output)
+    writer.writerow(["attacker_ip", "total_packets", "scan_type"])
     for r in rows:
-        writer.writerow(r)
+        writer.writerow([r.get('attacker_ip',''), r.get('total_packets',0), r.get('scan_type','')])
     csv_data = output.getvalue()
     output.close()
     return Response(csv_data, mimetype='text/csv', headers={
@@ -124,7 +125,8 @@ def analyze_traffic_window():
         'xmas_packets': 0,
         'null_packets': 0,
         'total_packets': 0,
-        'source_ips': set(),  # Track attacker IPs
+        'source_ips': set(),  # Track attacker IPs (set)
+        'source_ip_counts': Counter(),  # Count hits per source
         'http_nmap_probe': False,  # Detect Nmap HTTP-based probes (e.g., -A/-sV)
         'tcp_option_signatures': set(),  # Heuristic for OS fingerprinting (-O)
     }
@@ -143,11 +145,11 @@ def analyze_traffic_window():
             src_ip = packet[IP].src
             features['source_ips'].add(src_ip)
             
-            # Track destination port
+            # Track unique destination ports (scans hit many ports)
             dst_port = packet[TCP].dport
             features['unique_ports'].add(dst_port)
-            
-            # Analyze TCP flags to detect scan types
+
+            # Extract TCP flags to identify scan types
             flags = packet[TCP].flags
             
             if flags == 0x02:  # SYN Scan
@@ -163,6 +165,14 @@ def analyze_traffic_window():
             try:
                 opts = tuple(packet[TCP].options)
                 features['tcp_option_signatures'].add(opts)
+            except Exception:
+                pass
+
+            # Count source IP
+            try:
+                src_ip = packet[IP].src
+                features['source_ips'].add(src_ip)
+                features['source_ip_counts'][src_ip] += 1
             except Exception:
                 pass
 
@@ -256,17 +266,33 @@ def live_detector():
             # Convert to DataFrame (required by scikit-learn)
             df = pd.DataFrame([feature_vector])
             
-            # Ask the AI: "Is this an attack?"
+            # Ask the AI: "Is this an attack?" with confidence threshold
+            proba = None
+            try:
+                proba = float(model.predict_proba(df)[0][1])
+            except Exception:
+                pass
             prediction = model.predict(df)[0]
             
             # Debug: Show prediction
-            print(f"[DEBUG] AI Prediction: {prediction} (0=Normal, 1=Attack)")
+            if proba is not None:
+                print(f"[DEBUG] AI Prediction: {prediction} proba={proba:.2f} (0=Normal, 1=Attack)")
+            else:
+                print(f"[DEBUG] AI Prediction: {prediction} (0=Normal, 1=Attack)")
 
             # Heuristic rules for OS/Version/Aggressive probes that may be light-weight per 5s window
             opt_sig_count = len(features['tcp_option_signatures'])
             http_probe = features['http_nmap_probe']
-            os_probe_heuristic = opt_sig_count >= 10  # lower threshold for sensitivity
-            version_probe_heuristic = http_probe
+            # OS fingerprinting should show unusually high TCP option diversity plus activity
+            os_probe_heuristic = (
+                opt_sig_count >= 40 and (
+                    len(features['unique_ports']) >= 15 or
+                    features['syn_packets'] >= 20 or
+                    features['total_packets'] >= 300
+                )
+            )
+            # Version/Aggressive probe should include known payloads and non-trivial traffic
+            version_probe_heuristic = bool(http_probe and features['total_packets'] >= 50)
 
             # Rule-based triggers to guarantee alerts for common scans
             syn_rate = features['syn_packets'] / window_seconds
@@ -276,7 +302,7 @@ def live_detector():
             unique_ports = len(features['unique_ports'])
             total_pkts = features['total_packets']
 
-            port_sweep = unique_ports >= 50 or total_pkts >= 200 or syn_rate >= 10
+            port_sweep = unique_ports >= 50 or total_pkts >= 200 or syn_rate >= 12
 
             rule_scan_type = None
             if xmas_present:
@@ -288,9 +314,8 @@ def live_detector():
             elif port_sweep:
                 rule_scan_type = 'SYN Scan (Stealth)' if syn_rate >= 10 else 'Port Sweep'
 
-            should_alert = bool(
-                prediction == 1 or os_probe_heuristic or version_probe_heuristic or rule_scan_type is not None
-            )
+            ml_alert = (proba is not None and proba >= 0.75) or (proba is None and prediction == 1)
+            should_alert = bool(ml_alert or os_probe_heuristic or version_probe_heuristic or rule_scan_type is not None)
 
             if should_alert:
                 # Determine what type of scan it is
@@ -312,7 +337,10 @@ def live_detector():
                     capabilities.append('Rule trigger: Port Sweep')
                 
                 # Get the attacker's IP (or "Multiple" if many sources)
-                if len(features['source_ips']) == 1:
+                # Choose primary attacker (most packets)
+                if features['source_ip_counts']:
+                    attacker_ip = features['source_ip_counts'].most_common(1)[0][0]
+                elif len(features['source_ips']) == 1:
                     attacker_ip = list(features['source_ips'])[0]
                 else:
                     attacker_ip = f"Multiple ({len(features['source_ips'])} IPs)"
@@ -326,7 +354,15 @@ def live_detector():
                     'total_packets': features['total_packets'],
                     'details': "; ".join(capabilities) if capabilities else ''
                 }
-                
+                # Deduplicate: do not add the same (attacker, scan_type) again within 15s
+                dedup_key = (attacker_ip, scan_type)
+                now_ts = time.time()
+                last_ts = recent_alerts.get(dedup_key, 0)
+                if now_ts - last_ts < 15:
+                    # skip duplicate
+                    continue
+                recent_alerts[dedup_key] = now_ts
+
                 # Safely add the alert to the global list (thread-safe)
                 with alerts_lock:
                     alerts.insert(0, alert)  # Insert at beginning (newest first)
